@@ -23,7 +23,7 @@ export interface BackendDefinitionMetadata {
   type: 'backend';
   name: string;
   description?: string | null;
-  priority?: 'p0' | 'p1' | 'p2' | 'p3' | null;
+  priority?: string | null;
   stepTimeoutMs?: number | null;
   produces?: string[] | null;
   consumes?: string[] | null;
@@ -102,11 +102,14 @@ export function parseTestDefinition(value: unknown): TestDefinition {
   if (
     test.priority !== undefined &&
     test.priority !== null &&
-    (typeof test.priority !== 'string' || !['p0', 'p1', 'p2', 'p3'].includes(test.priority))
+    (typeof test.priority !== 'string' ||
+      !['p0', 'p1', 'p2', 'p3', 'high', 'medium', 'low'].includes(
+        test.priority.trim().toLowerCase(),
+      ))
   ) {
     throw localValidationError(
       'test.priority',
-      'must be p0, p1, p2, p3, or null',
+      'must be p0, p1, p2, p3, high, medium, low (case-insensitive), or null',
       undefined,
       'field',
     );

@@ -178,6 +178,42 @@ describe('individual backend definition export', () => {
     expect(printed).toBe(stableJson(definition));
   });
 
+  it.each([
+    ['High', 'p0'],
+    ['Medium', 'p1'],
+    ['Low', 'p2'],
+    ['p3', 'p2'],
+  ])('round-trips priority %s through export and imports it as %s', async (priority, wire) => {
+    const h = mockApi(call => {
+      if (call.method === 'GET') {
+        return json(200, call.url.endsWith('/code') ? codeRow : { ...testRow, priority });
+      }
+      if (call.method === 'POST') {
+        return json(201, { testId: 'test_new', codeVersion: 'v1', createdAt: 'now' });
+      }
+      if (call.url.endsWith('/code')) {
+        return json(200, { testId: TEST_ID, codeVersion: 'v8', updatedAt: 'now' });
+      }
+      return json(200, { testId: TEST_ID, updatedFields: ['priority'], updatedAt: 'now' });
+    });
+    const deps = {
+      credentialsPath: credentials(),
+      fetchImpl: h.fetchImpl,
+      stdout: () => undefined,
+      stderr: () => undefined,
+    };
+    const exported = await runExport(exportOptions(), deps);
+    expect(exported.test.priority).toBe(priority);
+    const file = fixtureFile(exported);
+    await runImport(importOptions(file), deps);
+    await runImport(importOptions(file, { testId: TEST_ID }), deps);
+    const metadataWrites = h.calls.filter(
+      call => call.method === 'POST' || (call.method === 'PUT' && !call.url.endsWith('/code')),
+    );
+    expect(metadataWrites).toHaveLength(2);
+    for (const call of metadataWrites) expect(call.body).toMatchObject({ priority: wire });
+  });
+
   it('keeps nullable optional values and safely commits an --out file only after both reads', async () => {
     const h = exportApi();
     const output = io();
